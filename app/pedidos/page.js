@@ -45,7 +45,23 @@ export default function PedidosPage() {
   }, []);
 
   function abrirNuevo() {
-    setForm({ cliente_id: "", fecha_entrega_estimada: "", notas: "", items: [] });
+    const hoy = new Date().toISOString().slice(0, 10);
+    setForm({
+      cliente_id: "",
+      fecha_pedido: hoy,
+      fecha_entrega_estimada: "",
+      notas: "",
+      items: [],
+      clienteNuevo: null, // null = eligiendo cliente existente; objeto = alta rápida
+    });
+  }
+
+  function abrirAltaRapidaCliente() {
+    setForm({ ...form, cliente_id: "", clienteNuevo: { nombre: "", email: "", telefono: "" } });
+  }
+
+  function cancelarAltaRapidaCliente() {
+    setForm({ ...form, clienteNuevo: null });
   }
 
   function agregarItem() {
@@ -83,10 +99,37 @@ export default function PedidosPage() {
       alert("Agregá al menos un producto al pedido.");
       return;
     }
+
+    let clienteId = form.cliente_id || null;
+
+    // Alta rápida: si se cargó un cliente nuevo en el momento, lo creamos primero.
+    if (form.clienteNuevo) {
+      if (!form.clienteNuevo.nombre.trim()) {
+        alert("Ingresá al menos el nombre del cliente nuevo.");
+        return;
+      }
+      const { data: clienteCreado, error: errorCliente } = await supabase
+        .from("clientes")
+        .insert({
+          nombre: form.clienteNuevo.nombre,
+          email: form.clienteNuevo.email || null,
+          telefono: form.clienteNuevo.telefono || null,
+        })
+        .select()
+        .single();
+
+      if (errorCliente) {
+        alert("No se pudo crear el cliente nuevo.");
+        return;
+      }
+      clienteId = clienteCreado.id;
+    }
+
     const { data: pedido, error } = await supabase
       .from("pedidos")
       .insert({
-        cliente_id: form.cliente_id || null,
+        cliente_id: clienteId,
+        fecha_pedido: form.fecha_pedido || null,
         fecha_entrega_estimada: form.fecha_entrega_estimada || null,
         notas: form.notas,
         total: totalForm,
@@ -188,25 +231,100 @@ export default function PedidosPage() {
           <form onSubmit={guardarPedido} className="card w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h2 className="font-display font-semibold text-lg mb-4">Nuevo pedido</h2>
 
-            <label className="field-label">Cliente</label>
-            <select
-              className="field-input mb-3"
-              value={form.cliente_id}
-              onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
-            >
-              <option value="">Sin especificar</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
-              ))}
-            </select>
+            {!form.clienteNuevo ? (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="field-label mb-0">Cliente</label>
+                  <button
+                    type="button"
+                    onClick={abrirAltaRapidaCliente}
+                    className="text-sm text-blueprint hover:underline"
+                  >
+                    + Es un cliente nuevo
+                  </button>
+                </div>
+                <select
+                  className="field-input mb-3"
+                  value={form.cliente_id}
+                  onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
+                >
+                  <option value="">Sin especificar</option>
+                  {clientes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <div className="border border-line rounded-sm p-3 mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium">Alta rápida de cliente</p>
+                  <button
+                    type="button"
+                    onClick={cancelarAltaRapidaCliente}
+                    className="text-sm text-inkmuted hover:underline"
+                  >
+                    Elegir cliente existente
+                  </button>
+                </div>
+                <label className="field-label">Nombre y apellido</label>
+                <input
+                  required
+                  className="field-input mb-2"
+                  value={form.clienteNuevo.nombre}
+                  onChange={(e) =>
+                    setForm({ ...form, clienteNuevo: { ...form.clienteNuevo, nombre: e.target.value } })
+                  }
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="field-label">Teléfono</label>
+                    <input
+                      className="field-input"
+                      value={form.clienteNuevo.telefono}
+                      onChange={(e) =>
+                        setForm({ ...form, clienteNuevo: { ...form.clienteNuevo, telefono: e.target.value } })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Email</label>
+                    <input
+                      type="email"
+                      className="field-input"
+                      value={form.clienteNuevo.email}
+                      onChange={(e) =>
+                        setForm({ ...form, clienteNuevo: { ...form.clienteNuevo, email: e.target.value } })
+                      }
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-inkmuted mt-2">
+                  Se va a dar de alta como cliente nuevo al crear el pedido. Después podés completar
+                  dirección y notas desde la pantalla de Clientes.
+                </p>
+              </div>
+            )}
 
-            <label className="field-label">Fecha de entrega estimada</label>
-            <input
-              type="date"
-              className="field-input mb-4"
-              value={form.fecha_entrega_estimada}
-              onChange={(e) => setForm({ ...form, fecha_entrega_estimada: e.target.value })}
-            />
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="field-label">Fecha del pedido</label>
+                <input
+                  type="date"
+                  className="field-input"
+                  value={form.fecha_pedido}
+                  onChange={(e) => setForm({ ...form, fecha_pedido: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="field-label">Entrega estimada</label>
+                <input
+                  type="date"
+                  className="field-input"
+                  value={form.fecha_entrega_estimada}
+                  onChange={(e) => setForm({ ...form, fecha_entrega_estimada: e.target.value })}
+                />
+              </div>
+            </div>
 
             <div className="flex items-center justify-between mb-2">
               <label className="field-label mb-0">Productos</label>
