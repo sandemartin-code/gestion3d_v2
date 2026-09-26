@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <form onSubmit={handleSubmit} className="card w-full max-w-sm">
         <h1 className="text-2xl font-semibold mb-1">Taller 3D</h1>
         <p className="text-sm text-inkmuted mb-6">Ingresá para gestionar tu emprendimiento.</p>
@@ -64,6 +65,8 @@ export default function LoginPage() {
           Add user). No hay registro público.
         </p>
       </form>
+
+      <ThemeToggle className="mt-6" />
     </div>
   );
 }

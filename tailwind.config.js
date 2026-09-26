@@ -1,19 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   content: ["./app/**/*.{js,jsx}", "./components/**/*.{js,jsx}"],
   theme: {
     extend: {
+      // Los colores salen de variables CSS definidas en globals.css.
+      // El formato "rgb(var(--x) / <alpha-value>)" es el que permite seguir
+      // usando modificadores de opacidad tipo bg-danger/10 o bg-overlay/40.
       colors: {
-        base: "#EDEFF2",
-        surface: "#FFFFFF",
-        ink: "#1B2430",
-        inkmuted: "#5B6472",
-        line: "#D8DCE2",
-        accent: "#E8A33D",
-        accentdark: "#C97F1D",
-        blueprint: "#2D5DE0",
-        danger: "#C6462B",
-        success: "#3E8E5B",
+        base: "rgb(var(--c-base) / <alpha-value>)",
+        surface: "rgb(var(--c-surface) / <alpha-value>)",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        inkmuted: "rgb(var(--c-inkmuted) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        accent: "rgb(var(--c-accent) / <alpha-value>)",
+        accentdark: "rgb(var(--c-accentdark) / <alpha-value>)",
+        blueprint: "rgb(var(--c-blueprint) / <alpha-value>)",
+        danger: "rgb(var(--c-danger) / <alpha-value>)",
+        success: "rgb(var(--c-success) / <alpha-value>)",
+        overlay: "rgb(var(--c-overlay) / <alpha-value>)",
       },
       fontFamily: {
         display: ["var(--font-space-grotesk)", "sans-serif"],

@@ -300,7 +300,7 @@ export default function PedidosPage() {
       )}
 
       {form && (
-        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50 py-6">
+        <div className="modal-overlay">
           <form onSubmit={guardarPedido} className="card w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h2 className="font-display font-semibold text-lg mb-4">Nuevo pedido</h2>
 

@@ -138,3 +138,25 @@ supabase/
   **editar** después de creados (hay que eliminarlos y volver a cargarlos).
 - No hay pantalla de "olvidé mi contraseña" — se resetea desde el panel de
   Supabase (Authentication → Users).
+
+## Tema claro / oscuro
+
+Abajo de todo hay un selector de tema: en la barra lateral (PC), en la barra
+inferior (celular) y debajo del formulario de login.
+
+La preferencia se guarda en dos lados:
+
+- **localStorage del navegador**, para aplicar el tema al instante. Un script
+  en `app/layout.js` corre antes de pintar la página, así no hay un flash
+  blanco antes de que entre el modo oscuro.
+- **`user_metadata` de Supabase**, para que la elección viaje con la cuenta.
+  Si entrás desde otra computadora o desde el celular, te aparece el mismo
+  tema que elegiste.
+
+Si nunca elegiste nada, se respeta la preferencia del sistema operativo
+(`prefers-color-scheme`).
+
+Los colores están definidos como variables CSS en `app/globals.css`
+(`:root` para el claro, `.dark` para el oscuro) y `tailwind.config.js` los
+consume. Para retocar un color de un tema alcanza con cambiar la variable,
+sin tocar ninguna pantalla.

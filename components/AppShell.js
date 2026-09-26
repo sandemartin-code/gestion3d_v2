@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/", label: "Panel" },
@@ -49,16 +50,20 @@ export default function AppShell({ children }) {
           })}
         </nav>
 
-        <button onClick={cerrarSesion} className="text-sm text-inkmuted hover:text-danger text-left">
-          Cerrar sesión
-        </button>
+        {/* Pie de la barra lateral */}
+        <div className="pt-4 mt-4 border-t border-line space-y-3">
+          <ThemeToggle />
+          <button onClick={cerrarSesion} className="block text-sm text-inkmuted hover:text-danger text-left">
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
 
       {/* Contenido */}
       <main className="flex-1 p-5 pb-24 md:p-8 md:pb-8 max-w-5xl">{children}</main>
 
       {/* Navegación móvil */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-surface border-t border-line flex z-40">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-surface border-t border-line flex items-stretch z-40">
         {NAV_ITEMS.map((item) => {
           const activo = pathname === item.href;
           return (
@@ -73,6 +78,7 @@ export default function AppShell({ children }) {
             </Link>
           );
         })}
+        <ThemeToggle compacto className="px-4 border-l border-line justify-center" />
       </nav>
     </div>
   );

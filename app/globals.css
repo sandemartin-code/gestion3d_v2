@@ -2,9 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Paleta. Los valores son canales RGB sueltos para que Tailwind pueda
+   aplicarles opacidad (bg-danger/10, bg-overlay/40, etc.). */
+:root {
+  --c-base: 237 239 242;
+  --c-surface: 255 255 255;
+  --c-ink: 27 36 48;
+  --c-inkmuted: 91 100 114;
+  --c-line: 216 220 226;
+  --c-accent: 232 163 61;
+  --c-accentdark: 201 127 29;
+  --c-blueprint: 45 93 224;
+  --c-danger: 198 70 43;
+  --c-success: 62 142 91;
+  --c-overlay: 27 36 48;
+  color-scheme: light;
+}
+
+.dark {
+  --c-base: 17 22 29;
+  --c-surface: 26 33 43;
+  --c-ink: 232 236 241;
+  --c-inkmuted: 152 162 179;
+  --c-line: 44 54 68;
+  --c-accent: 232 163 61;
+  --c-accentdark: 240 182 94;
+  --c-blueprint: 107 147 245;
+  --c-danger: 232 112 90;
+  --c-success: 95 181 127;
+  --c-overlay: 0 0 0;
+  color-scheme: dark;
+}
+
 @layer base {
   h1, h2, h3 {
     @apply font-display;
+  }
+  html {
+    @apply bg-base;
   }
 }
 
@@ -44,4 +79,20 @@
   .badge {
     @apply inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full;
   }
+  /* Fondo de los modales. Es una clase propia porque en modo oscuro el velo
+     tiene que seguir siendo negro, no del color del texto. */
+  .modal-overlay {
+    @apply fixed inset-0 bg-overlay/50 flex items-center justify-center px-4 z-50 py-6;
+  }
+}
+
+/* En modo oscuro el botón primario invierte: fondo claro sobre texto oscuro.
+   El hover con accentdark queda bien en ambos temas. */
+.dark .btn-primary {
+  @apply text-base;
+}
+
+/* Que los desplegables nativos y los date pickers no queden blancos */
+.dark select option {
+  @apply bg-surface text-ink;
 }
