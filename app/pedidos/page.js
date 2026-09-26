@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
+import ClienteSelector from "@/components/ClienteSelector";
 import { createClient } from "@/lib/supabaseClient";
 
 const ESTADOS = [
@@ -20,6 +21,10 @@ function badgeClase(estado) {
 
 function nombreItem(it) {
   return it.tipo === "personalizado" ? it.descripcion || "Personalizado" : it.producto_nombre;
+}
+
+function pesos(n) {
+  return Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 });
 }
 
 export default function PedidosPage() {
@@ -149,6 +154,13 @@ export default function PedidosPage() {
     });
   }
 
+  /**
+   * Reglas de precio:
+   *  - costo_unitario  -> propone precio unitario = costo × 4 (se puede pisar)
+   *  - precio_unitario -> se guarda tal cual; el total se recalcula solo
+   *  - precio_total    -> se reparte entre la cantidad para obtener el unitario
+   * En la base solo se guarda precio_unitario: el total siempre es derivado.
+   */
   function actualizarItem(index, campo, valor) {
     const items = [...form.items];
     const item = { ...items[index] };
@@ -161,6 +173,9 @@ export default function PedidosPage() {
     } else if (campo === "costo_unitario") {
       item.costo_unitario = valor;
       item.precio_unitario = Number(valor || 0) * MULTIPLICADOR_PERSONALIZADO;
+    } else if (campo === "precio_total") {
+      const cant = Number(item.cantidad || 0);
+      item.precio_unitario = cant > 0 ? Number(valor || 0) / cant : 0;
     } else {
       item[campo] = valor;
     }
@@ -353,7 +368,7 @@ export default function PedidosPage() {
                         {it.horas_impresion ? `${it.horas_impresion} h` : ""})
                       </span>
                     )}
-                    {" — "}${Number(it.precio_unitario * it.cantidad).toLocaleString("es-AR")}
+                    {" — "}${pesos(it.precio_unitario)} c/u = ${pesos(it.precio_unitario * it.cantidad)}
                   </li>
                 ))}
               </ul>
@@ -361,7 +376,7 @@ export default function PedidosPage() {
               {p.notas && <p className="text-sm text-inkmuted italic mb-2">"{p.notas}"</p>}
 
               <p className="font-display font-semibold text-right">
-                Total: ${Number(p.total).toLocaleString("es-AR")}
+                Total: ${pesos(p.total)}
               </p>
             </div>
           ))}
@@ -397,16 +412,11 @@ export default function PedidosPage() {
                     + Es un cliente nuevo
                   </button>
                 </div>
-                <select
-                  className="field-input mb-3"
-                  value={form.cliente_id}
-                  onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
-                >
-                  <option value="">Sin especificar</option>
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                  ))}
-                </select>
+                <ClienteSelector
+                  clientes={clientes}
+                  valor={form.cliente_id}
+                  onChange={(id) => setForm({ ...form, cliente_id: id })}
+                />
               </>
             ) : (
               <div className="border border-line rounded-sm p-3 mb-3">
@@ -501,8 +511,8 @@ export default function PedidosPage() {
                 {form.items.map((it, i) => (
                   <li key={i}>
                     {it.cantidad}× {nombreItem(it)}
-                    {" — "}
-                    ${(Number(it.cantidad || 0) * Number(it.precio_unitario || 0)).toLocaleString("es-AR")}
+                    {" — "}${pesos(it.precio_unitario)} c/u = $
+                    {pesos(Number(it.cantidad || 0) * Number(it.precio_unitario || 0))}
                   </li>
                 ))}
               </ul>
@@ -513,27 +523,44 @@ export default function PedidosPage() {
                   return (
                     <div key={i} className="border border-line rounded-sm p-3">
                       {it.tipo === "catalogo" ? (
-                        <div className="flex items-center gap-2">
-                          <select
-                            className="field-input flex-1"
-                            value={it.producto_id}
-                            onChange={(e) => actualizarItem(i, "producto_id", e.target.value)}
-                          >
-                            {productos.map((p) => (
-                              <option key={p.id} value={p.id}>{p.nombre}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="number"
-                            min="1"
-                            className="field-input w-16"
-                            value={it.cantidad}
-                            onChange={(e) => actualizarItem(i, "cantidad", e.target.value)}
-                          />
-                          <button type="button" onClick={() => quitarItem(i)} className="text-danger text-sm px-1">
-                            ✕
-                          </button>
-                        </div>
+                        <>
+                          <div className="flex items-center gap-2 mb-2">
+                            <select
+                              className="field-input flex-1"
+                              value={it.producto_id}
+                              onChange={(e) => actualizarItem(i, "producto_id", e.target.value)}
+                            >
+                              {productos.map((p) => (
+                                <option key={p.id} value={p.id}>{p.nombre}</option>
+                              ))}
+                            </select>
+                            <button type="button" onClick={() => quitarItem(i)} className="text-danger text-sm px-1">
+                              ✕
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="field-label">Cantidad</label>
+                              <input
+                                type="number"
+                                min="1"
+                                className="field-input"
+                                value={it.cantidad}
+                                onChange={(e) => actualizarItem(i, "cantidad", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="field-label">Precio unitario</label>
+                              <div className="field-input bg-base font-medium">
+                                ${pesos(it.precio_unitario)}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="field-label">Precio total</label>
+                              <div className="field-input bg-base font-medium">${pesos(subtotal)}</div>
+                            </div>
+                          </div>
+                        </>
                       ) : (
                         <>
                           <div className="flex items-center justify-between mb-2">
@@ -582,7 +609,7 @@ export default function PedidosPage() {
                               />
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 items-end">
+                          <div className="grid grid-cols-3 gap-2">
                             <div>
                               <label className="field-label">Costo</label>
                               <input
@@ -594,17 +621,38 @@ export default function PedidosPage() {
                               />
                             </div>
                             <div>
-                              <label className="field-label">Precio de venta (costo × 4)</label>
-                              <div className="field-input bg-base font-medium">
-                                ${Number(it.precio_unitario || 0).toLocaleString("es-AR")}
-                              </div>
+                              <label className="field-label">Precio unitario</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="field-input"
+                                value={it.precio_unitario}
+                                onChange={(e) => actualizarItem(i, "precio_unitario", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="field-label">Precio total</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="field-input"
+                                value={subtotal}
+                                onChange={(e) => actualizarItem(i, "precio_total", e.target.value)}
+                              />
                             </div>
                           </div>
+                          <p className="text-xs text-inkmuted mt-2">
+                            El costo propone el precio unitario (costo × {MULTIPLICADOR_PERSONALIZADO}),
+                            pero podés pisarlo. Si editás el precio total, el unitario se recalcula
+                            dividiendo por la cantidad.
+                          </p>
                         </>
                       )}
-                      <p className="text-right text-sm text-inkmuted mt-2">
-                        Subtotal: ${subtotal.toLocaleString("es-AR")}
-                      </p>
+                      {it.tipo === "personalizado" && (
+                        <p className="text-right text-sm text-inkmuted mt-2">
+                          Subtotal: ${pesos(subtotal)}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -620,7 +668,7 @@ export default function PedidosPage() {
             />
 
             <p className="text-right font-display font-semibold mb-4">
-              Total: ${totalForm.toLocaleString("es-AR")}
+              Total: ${pesos(totalForm)}
             </p>
 
             <div className="flex gap-3">
