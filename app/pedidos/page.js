@@ -28,7 +28,9 @@ export default function PedidosPage() {
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState(null);
+  const [editandoId, setEditandoId] = useState(null);
 
   async function cargar() {
     setCargando(true);
@@ -36,7 +38,7 @@ export default function PedidosPage() {
       supabase
         .from("pedidos")
         .select(
-          "*, clientes(nombre), pedido_items(id, tipo, producto_nombre, descripcion, cantidad, precio_unitario, gramos, horas_impresion, costo_unitario)"
+          "*, clientes(nombre), pedido_items(id, tipo, producto_id, producto_nombre, descripcion, cantidad, precio_unitario, gramos, horas_impresion, costo_unitario)"
         )
         .order("created_at", { ascending: false }),
       supabase.from("clientes").select("id, nombre").order("nombre"),
@@ -54,14 +56,44 @@ export default function PedidosPage() {
 
   function abrirNuevo() {
     const hoy = new Date().toISOString().slice(0, 10);
+    setEditandoId(null);
     setForm({
       cliente_id: "",
+      estado: "pendiente",
       fecha_pedido: hoy,
       fecha_entrega_estimada: "",
       notas: "",
       items: [],
       clienteNuevo: null, // null = eligiendo cliente existente; objeto = alta rápida
     });
+  }
+
+  function abrirEdicion(p) {
+    setEditandoId(p.id);
+    setForm({
+      cliente_id: p.cliente_id || "",
+      estado: p.estado,
+      fecha_pedido: p.fecha_pedido || "",
+      fecha_entrega_estimada: p.fecha_entrega_estimada || "",
+      notas: p.notas || "",
+      clienteNuevo: null,
+      items: (p.pedido_items || []).map((it) => ({
+        tipo: it.tipo,
+        producto_id: it.producto_id,
+        producto_nombre: it.producto_nombre,
+        descripcion: it.descripcion || "",
+        cantidad: it.cantidad,
+        gramos: it.gramos ?? "",
+        horas_impresion: it.horas_impresion ?? "",
+        costo_unitario: it.costo_unitario ?? "",
+        precio_unitario: it.precio_unitario,
+      })),
+    });
+  }
+
+  function cerrarForm() {
+    setForm(null);
+    setEditandoId(null);
   }
 
   function abrirAltaRapidaCliente() {
@@ -146,8 +178,15 @@ export default function PedidosPage() {
     0
   );
 
+  // Un pedido entregado ya descontó material del stock. Para no desbalancear
+  // el inventario, sus items quedan congelados: primero hay que sacarlo de
+  // "entregado" (lo que devuelve el material) y recién ahí editarlos.
+  const itemsBloqueados = editandoId !== null && form?.estado === "entregado";
+
   async function guardarPedido(e) {
     e.preventDefault();
+    if (guardando) return;
+
     if (form.items.length === 0) {
       alert("Agregá al menos un producto al pedido.");
       return;
@@ -159,12 +198,15 @@ export default function PedidosPage() {
       }
     }
 
+    setGuardando(true);
+
     let clienteId = form.cliente_id || null;
 
     // Alta rápida: si se cargó un cliente nuevo en el momento, lo creamos primero.
     if (form.clienteNuevo) {
       if (!form.clienteNuevo.nombre.trim()) {
         alert("Ingresá al menos el nombre del cliente nuevo.");
+        setGuardando(false);
         return;
       }
       const { data: clienteCreado, error: errorCliente } = await supabase
@@ -179,43 +221,67 @@ export default function PedidosPage() {
 
       if (errorCliente) {
         alert("No se pudo crear el cliente nuevo.");
+        setGuardando(false);
         return;
       }
       clienteId = clienteCreado.id;
     }
 
-    const { data: pedido, error } = await supabase
-      .from("pedidos")
-      .insert({
-        cliente_id: clienteId,
-        fecha_pedido: form.fecha_pedido || null,
-        fecha_entrega_estimada: form.fecha_entrega_estimada || null,
-        notas: form.notas,
-        total: totalForm,
-      })
-      .select()
-      .single();
+    const cabecera = {
+      cliente_id: clienteId,
+      fecha_pedido: form.fecha_pedido || null,
+      fecha_entrega_estimada: form.fecha_entrega_estimada || null,
+      notas: form.notas,
+      total: totalForm,
+    };
 
-    if (error) {
-      alert("No se pudo crear el pedido.");
-      return;
+    let pedidoId = editandoId;
+
+    if (editandoId) {
+      const { error } = await supabase.from("pedidos").update(cabecera).eq("id", editandoId);
+      if (error) {
+        alert("No se pudo guardar el pedido.");
+        setGuardando(false);
+        return;
+      }
+    } else {
+      const { data: pedido, error } = await supabase
+        .from("pedidos")
+        .insert(cabecera)
+        .select()
+        .single();
+      if (error) {
+        alert("No se pudo crear el pedido.");
+        setGuardando(false);
+        return;
+      }
+      pedidoId = pedido.id;
     }
 
-    const items = form.items.map((it) => ({
-      pedido_id: pedido.id,
-      tipo: it.tipo,
-      producto_id: it.tipo === "catalogo" ? it.producto_id : null,
-      producto_nombre: it.tipo === "catalogo" ? it.producto_nombre : null,
-      descripcion: it.tipo === "personalizado" ? it.descripcion : null,
-      cantidad: Number(it.cantidad),
-      gramos: it.tipo === "personalizado" ? Number(it.gramos || 0) : null,
-      horas_impresion: it.tipo === "personalizado" ? Number(it.horas_impresion || 0) : null,
-      costo_unitario: it.tipo === "personalizado" ? Number(it.costo_unitario || 0) : null,
-      precio_unitario: Number(it.precio_unitario),
-    }));
-    await supabase.from("pedido_items").insert(items);
+    // Los items se reemplazan enteros: es más simple y más seguro que
+    // intentar calcular qué se agregó, cambió o borró en el detalle.
+    if (!itemsBloqueados) {
+      if (editandoId) {
+        await supabase.from("pedido_items").delete().eq("pedido_id", pedidoId);
+      }
 
-    setForm(null);
+      const items = form.items.map((it) => ({
+        pedido_id: pedidoId,
+        tipo: it.tipo,
+        producto_id: it.tipo === "catalogo" ? it.producto_id : null,
+        producto_nombre: it.tipo === "catalogo" ? it.producto_nombre : null,
+        descripcion: it.tipo === "personalizado" ? it.descripcion : null,
+        cantidad: Number(it.cantidad),
+        gramos: it.tipo === "personalizado" ? Number(it.gramos || 0) : null,
+        horas_impresion: it.tipo === "personalizado" ? Number(it.horas_impresion || 0) : null,
+        costo_unitario: it.tipo === "personalizado" ? Number(it.costo_unitario || 0) : null,
+        precio_unitario: Number(it.precio_unitario),
+      }));
+      await supabase.from("pedido_items").insert(items);
+    }
+
+    setGuardando(false);
+    cerrarForm();
     cargar();
   }
 
@@ -266,6 +332,9 @@ export default function PedidosPage() {
                       <option key={e.value} value={e.value}>{e.label}</option>
                     ))}
                   </select>
+                  <button onClick={() => abrirEdicion(p)} className="text-sm text-blueprint hover:underline">
+                    Editar
+                  </button>
                   <button onClick={() => eliminarPedido(p.id)} className="text-sm text-danger hover:underline">
                     Eliminar
                   </button>
@@ -302,7 +371,19 @@ export default function PedidosPage() {
       {form && (
         <div className="modal-overlay">
           <form onSubmit={guardarPedido} className="card w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <h2 className="font-display font-semibold text-lg mb-4">Nuevo pedido</h2>
+            <h2 className="font-display font-semibold text-lg mb-4">
+              {editandoId ? "Editar pedido" : "Nuevo pedido"}
+            </h2>
+
+            {itemsBloqueados && (
+              <div className="border border-accent/40 bg-accent/10 rounded-sm p-3 mb-4">
+                <p className="text-sm">
+                  Este pedido está <strong>entregado</strong> y ya descontó material del stock. Podés
+                  cambiar cliente, fechas y notas, pero para modificar los productos primero pasalo a
+                  otro estado (eso devuelve el material al stock).
+                </p>
+              </div>
+            )}
 
             {!form.clienteNuevo ? (
               <>
@@ -372,7 +453,7 @@ export default function PedidosPage() {
                   </div>
                 </div>
                 <p className="text-xs text-inkmuted mt-2">
-                  Se va a dar de alta como cliente nuevo al crear el pedido. Después podés completar
+                  Se va a dar de alta como cliente nuevo al guardar el pedido. Después podés completar
                   dirección y notas desde la pantalla de Clientes.
                 </p>
               </div>
@@ -401,18 +482,30 @@ export default function PedidosPage() {
 
             <div className="flex items-center justify-between mb-2">
               <label className="field-label mb-0">Productos</label>
-              <div className="space-x-3">
-                <button type="button" onClick={agregarItemCatalogo} className="text-sm text-blueprint hover:underline">
-                  + Producto del catálogo
-                </button>
-                <button type="button" onClick={agregarItemPersonalizado} className="text-sm text-blueprint hover:underline">
-                  + Personalizado
-                </button>
-              </div>
+              {!itemsBloqueados && (
+                <div className="space-x-3">
+                  <button type="button" onClick={agregarItemCatalogo} className="text-sm text-blueprint hover:underline">
+                    + Producto del catálogo
+                  </button>
+                  <button type="button" onClick={agregarItemPersonalizado} className="text-sm text-blueprint hover:underline">
+                    + Personalizado
+                  </button>
+                </div>
+              )}
             </div>
 
             {form.items.length === 0 ? (
               <p className="text-sm text-inkmuted mb-4">Todavía no agregaste productos.</p>
+            ) : itemsBloqueados ? (
+              <ul className="text-sm text-inkmuted mb-4 space-y-1 border border-line rounded-sm p-3">
+                {form.items.map((it, i) => (
+                  <li key={i}>
+                    {it.cantidad}× {nombreItem(it)}
+                    {" — "}
+                    ${(Number(it.cantidad || 0) * Number(it.precio_unitario || 0)).toLocaleString("es-AR")}
+                  </li>
+                ))}
+              </ul>
             ) : (
               <div className="space-y-3 mb-4">
                 {form.items.map((it, i) => {
@@ -531,8 +624,10 @@ export default function PedidosPage() {
             </p>
 
             <div className="flex gap-3">
-              <button type="submit" className="btn-primary flex-1">Crear pedido</button>
-              <button type="button" onClick={() => setForm(null)} className="btn-secondary flex-1">
+              <button type="submit" disabled={guardando} className="btn-primary flex-1">
+                {guardando ? "Guardando..." : editandoId ? "Guardar cambios" : "Crear pedido"}
+              </button>
+              <button type="button" onClick={cerrarForm} className="btn-secondary flex-1">
                 Cancelar
               </button>
             </div>

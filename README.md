@@ -90,6 +90,17 @@ Un pedido puede tener dos tipos de ítems:
 También podés dar de alta un cliente nuevo desde la misma pantalla del
 pedido, sin ir a Clientes primero.
 
+### Editar un pedido
+
+Cada pedido tiene un botón **Editar** que abre el mismo formulario con todo
+cargado: cliente, fechas, notas y los ítems. Al guardar, los ítems se
+reemplazan enteros y el total se recalcula solo.
+
+Una excepción: si el pedido está en **entregado**, ya descontó material del
+stock, así que sus ítems quedan bloqueados. Podés editar cliente, fechas y
+notas igual, pero para tocar los productos hay que pasarlo antes a otro
+estado — eso devuelve el material al stock y libera la edición.
+
 ## Descuento automático de stock
 
 Cuando un pedido pasa a estado **entregado**, la base descuenta sola el
@@ -134,8 +145,6 @@ supabase/
 - Los ítems personalizados **no** descuentan stock, porque no tienen una
   receta de materiales asociada — solo gramos sueltos. Si querés que también
   descuenten, habría que agregarle al ítem qué material usó.
-- Los pedidos se pueden crear y cambiar de estado, pero todavía no se pueden
-  **editar** después de creados (hay que eliminarlos y volver a cargarlos).
 - No hay pantalla de "olvidé mi contraseña" — se resetea desde el panel de
   Supabase (Authentication → Users).
 
