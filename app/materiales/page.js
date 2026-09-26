@@ -50,6 +50,7 @@ export default function MaterialesPage() {
       stock_actual: Number(form.stock_actual),
       stock_minimo: Number(form.stock_minimo),
     };
+
     if (editandoId) {
       await supabase.from("materiales").update(payload).eq("id", editandoId);
     } else {
@@ -85,7 +86,7 @@ export default function MaterialesPage() {
               <tr>
                 <th>Nombre</th>
                 <th>Tipo</th>
-                <th>Costo / {"unidad"}</th>
+                <th>Costo / unidad</th>
                 <th>Stock</th>
                 <th></th>
               </tr>
@@ -95,24 +96,33 @@ export default function MaterialesPage() {
                 const bajo = Number(m.stock_actual) <= Number(m.stock_minimo);
                 return (
                   <tr key={m.id}>
-                    <td className="font-medium">
-                      {m.nombre}
-                      {m.color && <span className="text-inkmuted"> · {m.color}</span>}
+                    <td>
+                      <span className="font-medium">{m.nombre}</span>
+                      {m.color && <span className="text-inkmuted text-sm"> · {m.color}</span>}
                     </td>
-                    <td className="text-inkmuted capitalize">{m.tipo}</td>
-                    <td className="text-inkmuted">
+                    <td className="capitalize">{m.tipo}</td>
+                    <td>
                       ${Number(m.costo_unidad).toLocaleString("es-AR")} / {m.unidad}
                     </td>
                     <td>
-                      <span className={bajo ? "badge bg-danger/10 text-danger" : "badge bg-success/10 text-success"}>
+                      <span className={bajo ? "text-danger font-medium" : ""}>
                         {m.stock_actual} {m.unidad}
                       </span>
+                      {bajo && (
+                        <span className="badge bg-danger/10 text-danger ml-2">Stock bajo</span>
+                      )}
                     </td>
-                    <td className="text-right space-x-3 whitespace-nowrap">
-                      <button onClick={() => abrirEdicion(m)} className="text-sm text-blueprint hover:underline">
+                    <td className="whitespace-nowrap space-x-3">
+                      <button
+                        onClick={() => abrirEdicion(m)}
+                        className="text-sm text-blueprint hover:underline"
+                      >
                         Editar
                       </button>
-                      <button onClick={() => eliminar(m.id)} className="text-sm text-danger hover:underline">
+                      <button
+                        onClick={() => eliminar(m.id)}
+                        className="text-sm text-danger hover:underline"
+                      >
                         Eliminar
                       </button>
                     </td>
@@ -125,7 +135,7 @@ export default function MaterialesPage() {
       )}
 
       {form && (
-        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50">
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50 py-6">
           <form onSubmit={guardar} className="card w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="font-display font-semibold text-lg mb-4">
               {editandoId ? "Editar material" : "Nuevo material"}
@@ -187,7 +197,7 @@ export default function MaterialesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="field-label">Stock actual</label>
                 <input
@@ -211,7 +221,9 @@ export default function MaterialesPage() {
             </div>
 
             <div className="flex gap-3">
-              <button type="submit" className="btn-primary flex-1">Guardar</button>
+              <button type="submit" className="btn-primary flex-1">
+                Guardar
+              </button>
               <button type="button" onClick={() => setForm(null)} className="btn-secondary flex-1">
                 Cancelar
               </button>

@@ -65,6 +65,7 @@ export default function ProductosPage() {
       tiempo_impresion_horas: Number(form.tiempo_impresion_horas),
       materiales: form.materiales,
     };
+
     if (editandoId) {
       await supabase.from("productos").update(payload).eq("id", editandoId);
     } else {
@@ -94,22 +95,33 @@ export default function ProductosPage() {
       ) : productos.length === 0 ? (
         <p className="text-inkmuted">Todavía no cargaste productos.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {productos.map((p) => (
             <div key={p.id} className="card">
-              <div className="flex justify-between items-start">
+              <div className="flex items-start justify-between gap-2 mb-1">
                 <h3 className="font-display font-semibold">{p.nombre}</h3>
-                <span className="font-display font-semibold">${Number(p.precio).toLocaleString("es-AR")}</span>
+                <span className="font-display font-semibold whitespace-nowrap">
+                  ${Number(p.precio).toLocaleString("es-AR")}
+                </span>
               </div>
-              {p.descripcion && <p className="text-sm text-inkmuted mt-1">{p.descripcion}</p>}
-              <p className="text-xs text-inkmuted mt-2">
+
+              {p.descripcion && <p className="text-sm text-inkmuted mb-2">{p.descripcion}</p>}
+
+              <p className="text-xs text-inkmuted mb-3">
                 {p.tiempo_impresion_horas} h de impresión · {(p.materiales || []).length} material(es)
               </p>
-              <div className="mt-4 space-x-3">
-                <button onClick={() => abrirEdicion(p)} className="text-sm text-blueprint hover:underline">
+
+              <div className="space-x-3">
+                <button
+                  onClick={() => abrirEdicion(p)}
+                  className="text-sm text-blueprint hover:underline"
+                >
                   Editar
                 </button>
-                <button onClick={() => eliminar(p.id)} className="text-sm text-danger hover:underline">
+                <button
+                  onClick={() => eliminar(p.id)}
+                  className="text-sm text-danger hover:underline"
+                >
                   Eliminar
                 </button>
               </div>
@@ -119,7 +131,7 @@ export default function ProductosPage() {
       )}
 
       {form && (
-        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50">
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50 py-6">
           <form onSubmit={guardar} className="card w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="font-display font-semibold text-lg mb-4">
               {editandoId ? "Editar producto" : "Nuevo producto"}
@@ -135,8 +147,8 @@ export default function ProductosPage() {
 
             <label className="field-label">Descripción</label>
             <textarea
-              className="field-input mb-3"
               rows={2}
+              className="field-input mb-3"
               value={form.descripcion || ""}
               onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
             />
@@ -166,9 +178,11 @@ export default function ProductosPage() {
 
             <label className="field-label">Materiales que usa</label>
             {materialesDisponibles.length === 0 ? (
-              <p className="text-sm text-inkmuted mb-4">Cargá materiales primero para poder asociarlos.</p>
+              <p className="text-sm text-inkmuted mb-4">
+                Cargá materiales primero para poder asociarlos.
+              </p>
             ) : (
-              <div className="border border-line rounded-sm p-3 mb-5 space-y-2 max-h-40 overflow-y-auto">
+              <div className="border border-line rounded-sm p-3 mb-4 space-y-2">
                 {materialesDisponibles.map((m) => {
                   const seleccionado = form.materiales.find((x) => x.material_id === m.id);
                   return (
@@ -180,23 +194,31 @@ export default function ProductosPage() {
                       />
                       <span className="text-sm flex-1">{m.nombre}</span>
                       {seleccionado && (
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder={`cantidad en ${m.unidad}`}
-                          className="field-input w-32 py-1"
-                          value={seleccionado.cantidad}
-                          onChange={(e) => cambiarCantidad(m.id, e.target.value)}
-                        />
+                        <>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input w-24 py-1"
+                            value={seleccionado.cantidad}
+                            onChange={(e) => cambiarCantidad(m.id, e.target.value)}
+                          />
+                          <span className="text-xs text-inkmuted w-12">{m.unidad}</span>
+                        </>
                       )}
                     </div>
                   );
                 })}
+                <p className="text-xs text-inkmuted pt-1">
+                  La cantidad es lo que consume <strong>una unidad</strong> del producto. Se descuenta
+                  del stock cuando el pedido pasa a "entregado".
+                </p>
               </div>
             )}
 
             <div className="flex gap-3">
-              <button type="submit" className="btn-primary flex-1">Guardar</button>
+              <button type="submit" className="btn-primary flex-1">
+                Guardar
+              </button>
               <button type="button" onClick={() => setForm(null)} className="btn-secondary flex-1">
                 Cancelar
               </button>

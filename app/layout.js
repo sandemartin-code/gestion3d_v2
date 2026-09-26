@@ -26,9 +26,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es" className={`${spaceGrotesk.variable} ${inter.variable}`}>
-      <body className="bg-base text-ink font-body antialiased">
-        {children}
-      </body>
+      <body className="bg-base text-ink font-body antialiased">{children}</body>
     </html>
   );
 }

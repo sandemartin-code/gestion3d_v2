@@ -79,13 +79,19 @@ export default function ClientesPage() {
               {clientes.map((c) => (
                 <tr key={c.id}>
                   <td className="font-medium">{c.nombre}</td>
-                  <td className="text-inkmuted">{c.telefono || "—"}</td>
-                  <td className="text-inkmuted">{c.email || "—"}</td>
-                  <td className="text-right space-x-3 whitespace-nowrap">
-                    <button onClick={() => abrirEdicion(c)} className="text-sm text-blueprint hover:underline">
+                  <td>{c.telefono || "—"}</td>
+                  <td>{c.email || "—"}</td>
+                  <td className="whitespace-nowrap space-x-3">
+                    <button
+                      onClick={() => abrirEdicion(c)}
+                      className="text-sm text-blueprint hover:underline"
+                    >
                       Editar
                     </button>
-                    <button onClick={() => eliminar(c.id)} className="text-sm text-danger hover:underline">
+                    <button
+                      onClick={() => eliminar(c.id)}
+                      className="text-sm text-danger hover:underline"
+                    >
                       Eliminar
                     </button>
                   </td>
@@ -97,8 +103,8 @@ export default function ClientesPage() {
       )}
 
       {form && (
-        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50">
-          <form onSubmit={guardar} className="card w-full max-w-md">
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50 py-6">
+          <form onSubmit={guardar} className="card w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="font-display font-semibold text-lg mb-4">
               {editandoId ? "Editar cliente" : "Nuevo cliente"}
             </h2>
@@ -135,14 +141,16 @@ export default function ClientesPage() {
 
             <label className="field-label">Notas</label>
             <textarea
-              className="field-input mb-5"
               rows={2}
+              className="field-input mb-4"
               value={form.notas || ""}
               onChange={(e) => setForm({ ...form, notas: e.target.value })}
             />
 
             <div className="flex gap-3">
-              <button type="submit" className="btn-primary flex-1">Guardar</button>
+              <button type="submit" className="btn-primary flex-1">
+                Guardar
+              </button>
               <button type="button" onClick={() => setForm(null)} className="btn-secondary flex-1">
                 Cancelar
               </button>

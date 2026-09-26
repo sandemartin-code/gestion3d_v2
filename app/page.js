@@ -42,18 +42,18 @@ export default function DashboardPage() {
         <p className="text-inkmuted">Cargando...</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="grid gap-4 sm:grid-cols-3 mb-6">
             <div className="card">
               <p className="text-sm text-inkmuted mb-1">Clientes</p>
-              <p className="text-3xl font-display font-semibold">{resumen.totalClientes}</p>
+              <p className="font-display font-bold text-3xl">{resumen.totalClientes}</p>
             </div>
             <div className="card">
               <p className="text-sm text-inkmuted mb-1">Pedidos activos</p>
-              <p className="text-3xl font-display font-semibold">{resumen.pedidosActivos}</p>
+              <p className="font-display font-bold text-3xl">{resumen.pedidosActivos}</p>
             </div>
             <div className="card">
               <p className="text-sm text-inkmuted mb-1">Valor en curso</p>
-              <p className="text-3xl font-display font-semibold">
+              <p className="font-display font-bold text-3xl">
                 ${resumen.valorEnCurso.toLocaleString("es-AR")}
               </p>
             </div>
@@ -66,13 +66,14 @@ export default function DashboardPage() {
                 Ver materiales
               </Link>
             </div>
+
             {resumen.stockBajo.length === 0 ? (
               <p className="text-sm text-inkmuted">Todo el stock está por encima del mínimo.</p>
             ) : (
               <ul className="space-y-2">
                 {resumen.stockBajo.map((m) => (
-                  <li key={m.id} className="flex justify-between text-sm">
-                    <span>{m.nombre}</span>
+                  <li key={m.id} className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{m.nombre}</span>
                     <span className="text-danger">
                       {m.stock_actual} restante (mínimo {m.stock_minimo})
                     </span>

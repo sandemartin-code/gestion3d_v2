@@ -16,12 +16,15 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setCargando(true);
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setCargando(false);
+
     if (error) {
       setError("Email o contraseña incorrectos.");
       return;
     }
+
     router.push("/");
     router.refresh();
   }
@@ -29,12 +32,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <form onSubmit={handleSubmit} className="card w-full max-w-sm">
-        <h1 className="text-xl font-semibold mb-1">Taller 3D</h1>
+        <h1 className="text-2xl font-semibold mb-1">Taller 3D</h1>
         <p className="text-sm text-inkmuted mb-6">Ingresá para gestionar tu emprendimiento.</p>
 
-        <label className="field-label" htmlFor="email">Email</label>
+        <label className="field-label">Email</label>
         <input
-          id="email"
           type="email"
           required
           value={email}
@@ -42,9 +44,8 @@ export default function LoginPage() {
           className="field-input mb-4"
         />
 
-        <label className="field-label" htmlFor="password">Contraseña</label>
+        <label className="field-label">Contraseña</label>
         <input
-          id="password"
           type="password"
           required
           value={password}
@@ -58,9 +59,9 @@ export default function LoginPage() {
           {cargando ? "Ingresando..." : "Ingresar"}
         </button>
 
-        <p className="text-xs text-inkmuted mt-4">
-          El primer usuario se crea manualmente desde el panel de Supabase
-          (Authentication → Users → Add user). No hay registro público.
+        <p className="text-xs text-inkmuted mt-5 leading-relaxed">
+          El primer usuario se crea manualmente desde el panel de Supabase (Authentication → Users →
+          Add user). No hay registro público.
         </p>
       </form>
     </div>
