@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
-import ClienteSelector from "@/components/ClienteSelector";
+import Buscador from "@/components/Buscador";
 import { createClient } from "@/lib/supabaseClient";
 
 const ESTADOS = [
@@ -84,7 +84,7 @@ export default function PedidosPage() {
       clienteNuevo: null,
       items: (p.pedido_items || []).map((it) => ({
         tipo: it.tipo,
-        producto_id: it.producto_id,
+        producto_id: it.producto_id || "",
         producto_nombre: it.producto_nombre,
         descripcion: it.descripcion || "",
         cantidad: it.cantidad,
@@ -114,17 +114,17 @@ export default function PedidosPage() {
       alert("Todavía no tenés productos cargados en el catálogo.");
       return;
     }
-    const p = productos[0];
+    // Se agrega vacío: el producto se elige desde el buscador.
     setForm({
       ...form,
       items: [
         ...form.items,
         {
           tipo: "catalogo",
-          producto_id: p.id,
-          producto_nombre: p.nombre,
+          producto_id: "",
+          producto_nombre: "",
           cantidad: 1,
-          precio_unitario: p.precio,
+          precio_unitario: 0,
           descripcion: "",
           gramos: "",
           horas_impresion: "",
@@ -167,9 +167,9 @@ export default function PedidosPage() {
 
     if (campo === "producto_id") {
       const p = productos.find((x) => x.id === valor);
-      item.producto_id = valor;
-      item.producto_nombre = p.nombre;
-      item.precio_unitario = p.precio;
+      item.producto_id = valor || "";
+      item.producto_nombre = p ? p.nombre : "";
+      item.precio_unitario = p ? p.precio : 0;
     } else if (campo === "costo_unitario") {
       item.costo_unitario = valor;
       item.precio_unitario = Number(valor || 0) * MULTIPLICADOR_PERSONALIZADO;
@@ -207,6 +207,10 @@ export default function PedidosPage() {
       return;
     }
     for (const it of form.items) {
+      if (it.tipo === "catalogo" && !it.producto_id) {
+        alert("Elegí un producto en cada ítem del catálogo.");
+        return;
+      }
       if (it.tipo === "personalizado" && !it.descripcion?.trim()) {
         alert("Completá la descripción de cada ítem personalizado.");
         return;
@@ -412,11 +416,15 @@ export default function PedidosPage() {
                     + Es un cliente nuevo
                   </button>
                 </div>
-                <ClienteSelector
-                  clientes={clientes}
-                  valor={form.cliente_id}
-                  onChange={(id) => setForm({ ...form, cliente_id: id })}
-                />
+                <div className="mb-3">
+                  <Buscador
+                    opciones={clientes}
+                    valor={form.cliente_id}
+                    onChange={(id) => setForm({ ...form, cliente_id: id })}
+                    placeholder="Escribí para buscar un cliente..."
+                    vacio="Ningún cliente coincide con"
+                  />
+                </div>
               </>
             ) : (
               <div className="border border-line rounded-sm p-3 mb-3">
@@ -524,17 +532,22 @@ export default function PedidosPage() {
                     <div key={i} className="border border-line rounded-sm p-3">
                       {it.tipo === "catalogo" ? (
                         <>
-                          <div className="flex items-center gap-2 mb-2">
-                            <select
-                              className="field-input flex-1"
-                              value={it.producto_id}
-                              onChange={(e) => actualizarItem(i, "producto_id", e.target.value)}
+                          <div className="flex items-start gap-2 mb-2">
+                            <div className="flex-1">
+                              <Buscador
+                                opciones={productos}
+                                valor={it.producto_id}
+                                onChange={(id) => actualizarItem(i, "producto_id", id)}
+                                detalle={(p) => `$${pesos(p.precio)}`}
+                                placeholder="Escribí para buscar un producto..."
+                                vacio="Ningún producto coincide con"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => quitarItem(i)}
+                              className="text-danger text-sm px-1 py-2"
                             >
-                              {productos.map((p) => (
-                                <option key={p.id} value={p.id}>{p.nombre}</option>
-                              ))}
-                            </select>
-                            <button type="button" onClick={() => quitarItem(i)} className="text-danger text-sm px-1">
                               ✕
                             </button>
                           </div>
