@@ -1,0 +1,271 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import AppShell from "@/components/AppShell";
+import { createClient } from "@/lib/supabaseClient";
+
+const ESTADOS = [
+  { value: "pendiente", label: "Pendiente", clase: "bg-line text-ink" },
+  { value: "en_impresion", label: "En impresión", clase: "bg-blueprint/10 text-blueprint" },
+  { value: "listo", label: "Listo", clase: "bg-accent/10 text-accentdark" },
+  { value: "entregado", label: "Entregado", clase: "bg-success/10 text-success" },
+  { value: "cancelado", label: "Cancelado", clase: "bg-danger/10 text-danger" },
+];
+
+function badgeClase(estado) {
+  return ESTADOS.find((e) => e.value === estado)?.clase || "bg-line text-ink";
+}
+
+export default function PedidosPage() {
+  const supabase = createClient();
+  const [pedidos, setPedidos] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [form, setForm] = useState(null);
+
+  async function cargar() {
+    setCargando(true);
+    const [ped, cli, prod] = await Promise.all([
+      supabase
+        .from("pedidos")
+        .select("*, clientes(nombre), pedido_items(id, producto_nombre, cantidad, precio_unitario)")
+        .order("created_at", { ascending: false }),
+      supabase.from("clientes").select("id, nombre").order("nombre"),
+      supabase.from("productos").select("id, nombre, precio").order("nombre"),
+    ]);
+    setPedidos(ped.data || []);
+    setClientes(cli.data || []);
+    setProductos(prod.data || []);
+    setCargando(false);
+  }
+
+  useEffect(() => {
+    cargar();
+  }, []);
+
+  function abrirNuevo() {
+    setForm({ cliente_id: "", fecha_entrega_estimada: "", notas: "", items: [] });
+  }
+
+  function agregarItem() {
+    if (productos.length === 0) return;
+    const p = productos[0];
+    setForm({
+      ...form,
+      items: [...form.items, { producto_id: p.id, producto_nombre: p.nombre, cantidad: 1, precio_unitario: p.precio }],
+    });
+  }
+
+  function actualizarItem(index, campo, valor) {
+    const items = [...form.items];
+    if (campo === "producto_id") {
+      const p = productos.find((x) => x.id === valor);
+      items[index] = { ...items[index], producto_id: valor, producto_nombre: p.nombre, precio_unitario: p.precio };
+    } else {
+      items[index] = { ...items[index], [campo]: valor };
+    }
+    setForm({ ...form, items });
+  }
+
+  function quitarItem(index) {
+    setForm({ ...form, items: form.items.filter((_, i) => i !== index) });
+  }
+
+  const totalForm = (form?.items || []).reduce(
+    (s, it) => s + Number(it.cantidad || 0) * Number(it.precio_unitario || 0),
+    0
+  );
+
+  async function guardarPedido(e) {
+    e.preventDefault();
+    if (form.items.length === 0) {
+      alert("Agregá al menos un producto al pedido.");
+      return;
+    }
+    const { data: pedido, error } = await supabase
+      .from("pedidos")
+      .insert({
+        cliente_id: form.cliente_id || null,
+        fecha_entrega_estimada: form.fecha_entrega_estimada || null,
+        notas: form.notas,
+        total: totalForm,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert("No se pudo crear el pedido.");
+      return;
+    }
+
+    const items = form.items.map((it) => ({
+      pedido_id: pedido.id,
+      producto_id: it.producto_id,
+      producto_nombre: it.producto_nombre,
+      cantidad: Number(it.cantidad),
+      precio_unitario: Number(it.precio_unitario),
+    }));
+    await supabase.from("pedido_items").insert(items);
+
+    setForm(null);
+    cargar();
+  }
+
+  async function cambiarEstado(id, estado) {
+    await supabase.from("pedidos").update({ estado }).eq("id", id);
+    cargar();
+  }
+
+  async function eliminarPedido(id) {
+    if (!confirm("¿Eliminar este pedido?")) return;
+    await supabase.from("pedidos").delete().eq("id", id);
+    cargar();
+  }
+
+  return (
+    <AppShell>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold">Pedidos</h1>
+        <button onClick={abrirNuevo} className="btn-primary">
+          Nuevo pedido
+        </button>
+      </div>
+
+      {cargando ? (
+        <p className="text-inkmuted">Cargando...</p>
+      ) : pedidos.length === 0 ? (
+        <p className="text-inkmuted">Todavía no hay pedidos.</p>
+      ) : (
+        <div className="space-y-4">
+          {pedidos.map((p) => (
+            <div key={p.id} className="card">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                <div>
+                  <p className="font-display font-semibold">{p.clientes?.nombre || "Sin cliente"}</p>
+                  <p className="text-xs text-inkmuted">
+                    Pedido el {new Date(p.fecha_pedido).toLocaleDateString("es-AR")}
+                    {p.fecha_entrega_estimada &&
+                      ` · Entrega estimada ${new Date(p.fecha_entrega_estimada).toLocaleDateString("es-AR")}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={p.estado}
+                    onChange={(e) => cambiarEstado(p.id, e.target.value)}
+                    className={`badge border-0 ${badgeClase(p.estado)}`}
+                  >
+                    {ESTADOS.map((e) => (
+                      <option key={e.value} value={e.value}>{e.label}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => eliminarPedido(p.id)} className="text-sm text-danger hover:underline">
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+
+              <ul className="text-sm text-inkmuted mb-2">
+                {(p.pedido_items || []).map((it) => (
+                  <li key={it.id}>
+                    {it.cantidad}× {it.producto_nombre} — ${Number(it.precio_unitario * it.cantidad).toLocaleString("es-AR")}
+                  </li>
+                ))}
+              </ul>
+
+              {p.notas && <p className="text-sm text-inkmuted italic mb-2">"{p.notas}"</p>}
+
+              <p className="font-display font-semibold text-right">
+                Total: ${Number(p.total).toLocaleString("es-AR")}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {form && (
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50 py-6">
+          <form onSubmit={guardarPedido} className="card w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="font-display font-semibold text-lg mb-4">Nuevo pedido</h2>
+
+            <label className="field-label">Cliente</label>
+            <select
+              className="field-input mb-3"
+              value={form.cliente_id}
+              onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
+            >
+              <option value="">Sin especificar</option>
+              {clientes.map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </select>
+
+            <label className="field-label">Fecha de entrega estimada</label>
+            <input
+              type="date"
+              className="field-input mb-4"
+              value={form.fecha_entrega_estimada}
+              onChange={(e) => setForm({ ...form, fecha_entrega_estimada: e.target.value })}
+            />
+
+            <div className="flex items-center justify-between mb-2">
+              <label className="field-label mb-0">Productos</label>
+              <button type="button" onClick={agregarItem} className="text-sm text-blueprint hover:underline">
+                + Agregar producto
+              </button>
+            </div>
+
+            {form.items.length === 0 ? (
+              <p className="text-sm text-inkmuted mb-4">Todavía no agregaste productos.</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {form.items.map((it, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <select
+                      className="field-input flex-1"
+                      value={it.producto_id}
+                      onChange={(e) => actualizarItem(i, "producto_id", e.target.value)}
+                    >
+                      {productos.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nombre}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min="1"
+                      className="field-input w-16"
+                      value={it.cantidad}
+                      onChange={(e) => actualizarItem(i, "cantidad", e.target.value)}
+                    />
+                    <button type="button" onClick={() => quitarItem(i)} className="text-danger text-sm px-1">
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <label className="field-label">Notas</label>
+            <textarea
+              className="field-input mb-4"
+              rows={2}
+              value={form.notas}
+              onChange={(e) => setForm({ ...form, notas: e.target.value })}
+            />
+
+            <p className="text-right font-display font-semibold mb-4">
+              Total: ${totalForm.toLocaleString("es-AR")}
+            </p>
+
+            <div className="flex gap-3">
+              <button type="submit" className="btn-primary flex-1">Crear pedido</button>
+              <button type="button" onClick={() => setForm(null)} className="btn-secondary flex-1">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </AppShell>
+  );
+}
